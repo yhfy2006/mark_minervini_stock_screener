@@ -225,15 +225,12 @@ def stock_screener(index_tinker_name='S&P500', min_vol=5e6, min_price=0, days=36
 			continue
 		if num % 10 == 0:
 			for i in list(range(5))[::-1]:
-				having_break.text(f'waiting for {i}sec')
+				print(f'waiting for {i}sec')
 				time.sleep(1)
-			# having_break = st.empty()
 		if num % 100 == 0:
 			for i in list(range(3))[::-1]:
-				having_break.text(f'waiting for {i}min')
+				print(f'waiting for {i}min')
 				time.sleep(60)
-			# having_break = st.empty()
-			# time.sleep(5*60)
 
 	final_df = pd.DataFrame(final)
 	# all_data_df = pd.DataFrame(all_data)
