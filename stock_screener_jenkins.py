@@ -11,8 +11,8 @@ import datetime
 import time
 from pprint import pprint
 from collections import OrderedDict
-import streamlit as st
 import base64
+import argparse
 
 
 def period(days=365):
@@ -21,7 +21,7 @@ def period(days=365):
   '''
   start_date = datetime.datetime.now() - datetime.timedelta(days=365)
   end_date = datetime.date.today()
-  return start_date, end_date 
+  return start_date, end_date
 
 def calc_relative_strength(df):
   ## relative gain and losses
@@ -37,28 +37,28 @@ def calc_relative_strength(df):
 
 def get_stock(stock, days=365):
 	start_date, end_date =period(days)
-	try: 
+	try:
 		df = pdr.get_data_yahoo(stock, start=start_date, end=end_date )
 		df = df.drop(['High', 'Low', 'Open','Close'], axis=1)
 		df = df.rename(columns={'Adj Close': "adj_close"})
-		
+
 	except:
 		return False
 	if len(df) < 2:
 		print('Less 2')
 		return False
 	return df
-	
+
 def rs_rating(stock_rs_strange_value, index_rs_strange_value):
   # print(f'Stock RS:{stock_rs_strange_value}, Index RS:{index_rs_strange_value}')
   return 100 * ( stock_rs_strange_value / index_rs_strange_value )
 
 class Moving_avg:
-  # self.index_strange = index_strange 
+  # self.index_strange = index_strange
   def __init__(self, stockname, df,  index_strange, min_rs_rating=70):
     self.stockname = stockname
     self.df = df
-    
+
     # self.stock_data = get_stock(stockname)
 
     self.df = self.calc_moving_avg(self.df)
@@ -74,7 +74,7 @@ class Moving_avg:
     self.high_of_52week = self.df["adj_close"][-260:].max()
 
     try:
-      ## Need to double check this 
+      ## Need to double check this
       ## should SMA trending up for at least 1 month (ideally 4-5 months)
         self.sma200_20 = df["SMA_200"][-20]
     except:
@@ -102,7 +102,7 @@ class Moving_avg:
     for x in [50,150,200]:
       df["SMA_"+str(x)] = round(df['adj_close'].rolling(window=x).mean(), 2)
     return df
-  
+
 
   def avg_volume(self):
     return self.df['volume'].mean()
@@ -120,8 +120,8 @@ class Moving_avg:
   def condition3(self):
     # Condition 3: 200 SMA trending up for at least 1 month (ideally 4-5 months)
     if self.sma200 > self.sma200_20:
-      return True 
-  
+      return True
+
   def condition4(self):
     # Condition 4: 50 SMA> 150 SMA and 50 SMA> 200 SMA
     if self.sma50 > self.sma150 > self.sma200:
@@ -130,18 +130,18 @@ class Moving_avg:
   def condition5(self):
     # Condition 5: Current Price > 50 SMA
     if self.price > self.sma50:
-      return True 
-  
+      return True
+
   def condition6(self):
     # Condition 6: Current Price is at least 30% above 52 week low (Many of the best are up 100-300% before coming out of consolidation)
     if self.price >= (1.3 * self.low_of_52week):
       return True
-  
+
   def condition7(self):
   # Condition 7: Current Price is within 25% of 52 week high
     if self.price >= (0.75 * self.high_of_52week):
       return True
-  
+
   def condition8(self):
   # Condiction 8: IBD RS_Rating greater than 70
     if self.rs_rating >=self.min_rs_rating:
@@ -160,10 +160,8 @@ class Moving_avg:
     	return True
 
 def filedownload(df):
-    csv = df.to_csv(index=False)
-    b64 = base64.b64encode(csv.encode()).decode()  # strings <-> bytes conversions
-    href = f'<a href="data:file/csv;base64,{b64}" download="MM_stock_screener.csv">Download CSV File</a>'
-    return href    
+    csv = df.to_csv('StockScreenResult.csv',index=False)
+
 
 def stock_screener(index_tinker_name='S&P500', min_vol=5e6, min_price=0, days=365, min_rs_rating=70,):
 # help(si)
@@ -173,7 +171,7 @@ def stock_screener(index_tinker_name='S&P500', min_vol=5e6, min_price=0, days=36
 
 	index_tinker = {
 		'DOW': 'DOW',
-		'NASDAQ': '^IXIC', 
+		'NASDAQ': '^IXIC',
 		"S&P500": '^GSPC'
 	}
 
@@ -182,7 +180,6 @@ def stock_screener(index_tinker_name='S&P500', min_vol=5e6, min_price=0, days=36
 		'NASDAQ': si.tickers_nasdaq(),
 		"S&P500": si.tickers_sp500()
 	}
-	st.header(f'Stock Screener {index_tinker_name}')
 	# stocklist = si.tickers_sp500()
 	min_volume = min_vol
 	# index_name = '^GSPC' # SPY or S&P 500
@@ -199,9 +196,6 @@ def stock_screener(index_tinker_name='S&P500', min_vol=5e6, min_price=0, days=36
 
 	exclude_list = []
 	all_data = []
-	latest_iteration = st.empty()
-	having_break = st.empty()
-	bar = st.progress(0)
 	total = len(stocklist)
 
 	for num, stock_name in enumerate(stocklist):
@@ -222,12 +216,10 @@ def stock_screener(index_tinker_name='S&P500', min_vol=5e6, min_price=0, days=36
 			print(f'Passed conditions: {stock_name}')
 			final.append(stock_meta.as_dict())
 		else:
-			print(f'Failed conditions: {stock_name}')  
+			print(f'Failed conditions: {stock_name}')
 			# all_data.append(stock_meta.as_dict())
-		
-		latest_iteration.text(f'Stocks Processed: {(num+1)}/{total}')
-		bar.progress((num+1)/total)
-	
+
+		print(f'Stocks Processed: {(num+1)}/{total}')
 
 		if num == 0:
 			continue
@@ -245,53 +237,74 @@ def stock_screener(index_tinker_name='S&P500', min_vol=5e6, min_price=0, days=36
 
 	final_df = pd.DataFrame(final)
 	# all_data_df = pd.DataFrame(all_data)
-	return final_df 
+	return final_df
 
 
-#### ---- The App ---- ####
-## ref: https://towardsdatascience.com/making-a-stock-screener-with-python-4f591b198261
-st.sidebar.header('Settings')
-index_tinker = st.sidebar.selectbox('Index', ['S&P500', 'DOW', 'NASDAQ', ] )
-min_volume = st.sidebar.text_input("Minimum Volume", 1e6)
-min_price = st.sidebar.slider('Minimum Price ($)', 0,5000, 0)
-days = st.sidebar.slider('Max Period (days)', 14, 730, 365)
-min_rs_rating = st.sidebar.slider('Minimum Relative Strange Rating', 1, 100, 70)
-with st.beta_container():
-	st.title('Mark Minervini’s Trend stock screener')
-	st.write('''
-		I've created this app help screen for stock using the Mark Minervini's 8 principles
-		inspried by these blogs:
-		* [How To Scan Mark Minervini’s Trend Template Using Python](https://www.marcellagerwerf.com/how-to-scan-mark-minervinis-trend-template-using-python/)
-		* [How to build a stock screener](https://www.youtube.com/watch?v=hngHA9Jjbjc&list=PLPfme2mwsQ1FQhH1icKEfiYdLSUHE-Wo5&index=3&ab_channel=RichardMoglen)
-		* [Making a Stock Screener with Python!](https://towardsdatascience.com/making-a-stock-screener-with-python-4f591b198261)
 
-		You can read more about this template in Mark Minervini’s [blog post](http://www.minervini.com/blog/index.php/blog/first_things_first_how_to_chart_stocks_correctly_and_increase_your_chances).
-		''')
-	expander = st.beta_expander("Principles")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--idx', '-i', help="index", type=str, default="NASDAQ")
+    parser.add_argument('--minV', '-v', help="min_vol", type=int, default=1000000)
+    parser.add_argument('--minP', '-p', help="min_price", type=int, default=0)
+    parser.add_argument('--maxPd', '-pd', help="max_peroid", type=int, default=365)
+    parser.add_argument('--minR', '-R', help="min_rating", type=int, default=80)
 
-	expander.write('''
-	
-		1. The current price of the security must be greater than the 150 and 200-day simple moving averages.
-		2. The 150-day simple moving average must be greater than the 200-day simple moving average.
-		3. The 200-day simple moving average must be trending up for at least 1 month.
-		4. The 50-day simple moving average must be greater than the 150 simple moving average and the 200 simple moving average.
-		5. The current price must be greater than the 50-day simple moving average.
-		6. The current price must be at least 30% above the 52 week low.
-		7. The current price must be within 25% of the 52 week high.
-		8. The IBD RS-Rating must be greater than 70 (the higher, the better). The RS rating is a metric of a stock’s price performance over the last year compared to all other stocks and the overall market. Check out this article to learn more.
-	
-	''')
-	# I created this article to help others make an easy-to-read stock screener Python program based on Mark Minervini’s Trend Template (the 8 principles on selecting the best stocks
+    args = parser.parse_args()
+    index = args.idx
+    min_vol = args.minV
+    min_price = args.minP
+    max_peroid = args.maxPd
+    min_rating = args.minR
+
+    final_df = stock_screener(index, min_vol, min_price, max_peroid, min_rating)
+    filedownload(final_df)
 
 
-	if st.button('Start screening'):
-		# st.header('Socker screener')
-
-		final_df = stock_screener(index_tinker, min_volume, min_price, days, min_rs_rating)
-		st.dataframe(final_df)
-		
-		st.markdown(filedownload(final_df), unsafe_allow_html=True)
-		st.set_option('deprecation.showPyplotGlobalUse', False)
+#
+# #### ---- The App ---- ####
+# ## ref: https://towardsdatascience.com/making-a-stock-screener-with-python-4f591b198261
+# st.sidebar.header('Settings')
+# index_tinker = st.sidebar.selectbox('Index', ['S&P500', 'DOW', 'NASDAQ', ] )
+# min_volume = st.sidebar.text_input("Minimum Volume", 1e6)
+# min_price = st.sidebar.slider('Minimum Price ($)', 0,5000, 0)
+# days = st.sidebar.slider('Max Period (days)', 14, 730, 365)
+# min_rs_rating = st.sidebar.slider('Minimum Relative Strange Rating', 1, 100, 70)
+# with st.beta_container():
+# 	st.title('Mark Minervini’s Trend stock screener')
+# 	st.write('''
+# 		I've created this app help screen for stock using the Mark Minervini's 8 principles
+# 		inspried by these blogs:
+# 		* [How To Scan Mark Minervini’s Trend Template Using Python](https://www.marcellagerwerf.com/how-to-scan-mark-minervinis-trend-template-using-python/)
+# 		* [How to build a stock screener](https://www.youtube.com/watch?v=hngHA9Jjbjc&list=PLPfme2mwsQ1FQhH1icKEfiYdLSUHE-Wo5&index=3&ab_channel=RichardMoglen)
+# 		* [Making a Stock Screener with Python!](https://towardsdatascience.com/making-a-stock-screener-with-python-4f591b198261)
+#
+# 		You can read more about this template in Mark Minervini’s [blog post](http://www.minervini.com/blog/index.php/blog/first_things_first_how_to_chart_stocks_correctly_and_increase_your_chances).
+# 		''')
+# 	expander = st.beta_expander("Principles")
+#
+# 	expander.write('''
+#
+# 		1. The current price of the security must be greater than the 150 and 200-day simple moving averages.
+# 		2. The 150-day simple moving average must be greater than the 200-day simple moving average.
+# 		3. The 200-day simple moving average must be trending up for at least 1 month.
+# 		4. The 50-day simple moving average must be greater than the 150 simple moving average and the 200 simple moving average.
+# 		5. The current price must be greater than the 50-day simple moving average.
+# 		6. The current price must be at least 30% above the 52 week low.
+# 		7. The current price must be within 25% of the 52 week high.
+# 		8. The IBD RS-Rating must be greater than 70 (the higher, the better). The RS rating is a metric of a stock’s price performance over the last year compared to all other stocks and the overall market. Check out this article to learn more.
+#
+# 	''')
+# 	# I created this article to help others make an easy-to-read stock screener Python program based on Mark Minervini’s Trend Template (the 8 principles on selecting the best stocks
+#
+#
+# 	if st.button('Start screening'):
+# 		# st.header('Socker screener')
+#
+# 		final_df = stock_screener(index_tinker, min_volume, min_price, days, min_rs_rating)
+# 		st.dataframe(final_df)
+#
+# 		st.markdown(filedownload(final_df), unsafe_allow_html=True)
+# 		st.set_option('deprecation.showPyplotGlobalUse', False)
 
 
 
