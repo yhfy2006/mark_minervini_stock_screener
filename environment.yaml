@@ -16,4 +16,5 @@ dependencies:
     - urllib3==1.25.10
     - yahoo-fin==0.8.6
     - yfinance==0.1.55
+    - yahoo_earnings_calendar==0.6.0
 
