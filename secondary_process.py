@@ -2,6 +2,7 @@ import datetime
 from yahoo_earnings_calendar import YahooEarningsCalendar
 import csv
 import json
+import argparse
 
 class EPS:
     def __init__(self, processed_earning_abs_value, avg_eps_abs, ticket):
@@ -21,6 +22,7 @@ class SecondaryProcess:
     datetimeNow = datetime.datetime.now()
     datetimeFrom = datetime.datetime.now() - datetime.timedelta(days=2 * 365)
     yec = YahooEarningsCalendar()
+    target_eps = 0
 
     def object_decoder(self, obj):
         if '__type__' in obj and obj['__type__'] == 'EPS':
@@ -49,13 +51,13 @@ class SecondaryProcess:
             results = filter(results)
 
 
-        with open('secondary_result.json', 'w', encoding='utf-8') as f:
+        with open('SecondaryResult.json', 'w', encoding='utf-8') as f:
             json.dump(results, f, ensure_ascii=False, indent=4)
 
 
     def filter_avg_eps(self, results):
         print('filter_avg_eps: before filtering, {}'.format(len(results)))
-        filtered = [x for x in results if x['avg_eps_abs'] > 0.25]
+        filtered = [x for x in results if x['avg_eps_abs'] > self.target_eps]
         print('filter_avg_eps: after filtering, {}'.format(len(filtered)))
         return filtered
 
@@ -76,5 +78,11 @@ class SecondaryProcess:
 
 
 if __name__ == '__main__':
-    a = SecondaryProcess()
-    a.processCSV('MM_stock_screener4.csv', False, a.filter_avg_eps)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--file', '-f', help="file_path", type=str)
+    parser.add_argument('--eps', '-e', help="average_eps", type=float, default=0.25)
+    args = parser.parse_args()
+
+    processor = SecondaryProcess()
+    processor.target_eps = args.eps
+    processor.processCSV(args.file, False, processor.filter_avg_eps)
