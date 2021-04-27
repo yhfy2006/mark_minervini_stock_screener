@@ -44,8 +44,6 @@ def buildReport(file_path):
     hs = open("report.html", 'w')
     hs.write(strTable)
 
-    print(strTable)
-
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
